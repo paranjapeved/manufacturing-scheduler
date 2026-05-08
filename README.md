@@ -1,8 +1,12 @@
-# Manufacturing Scheduler Backend
+# Manufacturing Scheduler 
+This project cane be used as a starting point for any manufacturing companies
+to create a schedule for workers based on their skill level, number of items to be
+produced in a week, different types of machines available, etc. It is useful
+to understand gaps in the manufacturing process such as need for additional
+workers, more machines, skill building in the workforce, etc.
 
-Python backend code for assigning workers to machine types so weekly item
-throughput can be produced. If the full quota is infeasible, the scheduler
-still returns the optimal partial schedule and explains the missing capacity.
+Note: This is a hobby project and would need additional tweaking and testing 
+to make it production ready
 
 ## What It Models
 
