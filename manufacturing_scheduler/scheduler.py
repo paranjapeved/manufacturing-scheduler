@@ -46,7 +46,7 @@ DEFAULT_DATA: dict[str, Any] = {
         "Machine1": 3,
         "Machine2": 5,
         "Machine3": 4,
-        "Machine4": 1,
+        "Machine4": 2,
     },
     "Workers": {
         "Worker1": ["Machine1", "Machine2"],
@@ -564,7 +564,7 @@ def main() -> None:
     try:
         schedule = build_schedule(
             DEFAULT_DATA,
-            ScheduleConfig(worker_hours_per_week=40, machine_hours_per_week=40),
+            ScheduleConfig(worker_hours_per_week=80, machine_hours_per_week=80),
         )
     except InfeasibleScheduleError as exc:
         print("Schedule is infeasible:")

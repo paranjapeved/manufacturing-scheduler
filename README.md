@@ -1,5 +1,5 @@
 # Manufacturing Scheduler 
-This project cane be used as a starting point for any manufacturing companies
+This project can be used as a starting point for any manufacturing companies
 to create a schedule for workers based on their skill level, number of items to be
 produced in a week, different types of machines available, etc. It is useful
 to understand gaps in the manufacturing process such as need for additional
@@ -18,7 +18,7 @@ to make it production ready
 The scheduler first converts item demand into required machine hours:
 
 ```text
-required hours = weekly requirement / items produced per hour
+required hours = weekly production requirement / items produced per hour
 ```
 
 It then uses a max-flow allocator to assign qualified workers to machines. This
