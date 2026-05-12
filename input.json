@@ -1,0 +1,65 @@
+{
+  "Items": {
+    "Item1": {
+      "Machine": "Machine1",
+      "Weekly_requirement": 10000,
+      "Items_produced_per_hour": 100
+    },
+    "Item2": {
+      "Machine": "Machine2",
+      "Weekly_requirement": 20000,
+      "Items_produced_per_hour": 100
+    },
+    "Item3": {
+      "Machine": "Machine3",
+      "Weekly_requirement": 15000,
+      "Items_produced_per_hour": 100
+    },
+    "Item4": {
+      "Machine": "Machine4",
+      "Weekly_requirement": 12000,
+      "Items_produced_per_hour": 100
+    }
+  },
+  "Machine_counts": {
+    "Machine1": 3,
+    "Machine2": 5,
+    "Machine3": 4,
+    "Machine4": 2
+  },
+  "Workers": {
+    "Worker1": [
+      "Machine1",
+      "Machine2"
+    ],
+    "Worker2": [
+      "Machine3",
+      "Machine4"
+    ],
+    "Worker3": [
+      "Machine4"
+    ],
+    "Worker4": [
+      "Machine3"
+    ],
+    "Worker5": [
+      "Machine1",
+      "Machine2"
+    ],
+    "Worker6": [
+      "Machine3",
+      "Machine4"
+    ],
+    "Worker7": [
+      "Machine3"
+    ],
+    "Worker8": [
+      "Machine1",
+      "Machine4"
+    ],
+    "Worker9": [
+      "Machine3",
+      "Machine2"
+    ]
+  }
+}

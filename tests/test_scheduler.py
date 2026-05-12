@@ -1,70 +1,103 @@
-import pytest
+from manufacturing_scheduler.data import Company, Items, Process, Worker
+import json
+import subprocess
+import sys
 
-from manufacturing_scheduler import DEFAULT_DATA, InfeasibleScheduleError, ScheduleConfig, build_schedule
+from manufacturing_scheduler.scheduler import Scheduler
+from manufacturing_scheduler.scheduler_input_data import SchedulerInputData, load_sample_data
 
 
-def test_single_shift_capacity_returns_best_possible_schedule_and_shortages():
-    result = build_schedule(
-        DEFAULT_DATA,
-        ScheduleConfig(worker_hours_per_week=40, machine_hours_per_week=40),
+def test_scheduler_assigns_workers_roughly_equally_across_processes():
+    schedule = Scheduler(load_sample_data()).create_schedule()
+
+    worker_counts = [len(assignments) for assignments in schedule.values()]
+
+    assert sum(worker_counts) == 9
+    assert max(worker_counts) - min(worker_counts) <= 1
+
+
+def test_scheduler_prefers_highest_output_workers_for_processes():
+    input_data = SchedulerInputData(
+        company=Company(shift_hours=8, hours_per_week=40),
+        items=[Items(name="Widget", required_qty=10, processes=["Cutting", "Assembly"])],
+        processes=[
+            Process(name="Cutting", process_code="P1"),
+            Process(name="Assembly", process_code="P2"),
+        ],
+        workers=[
+            Worker(name="CuttingSpecialist", process_output_per_hour={"P1": 50, "P2": 1}),
+            Worker(name="AssemblySpecialist", process_output_per_hour={"P1": 1, "P2": 40}),
+        ],
     )
 
-    assert result.is_feasible is False
-    assert sum(result.machine_hours_used.values()) == 350.0
-    assert result.shortage_report["additional_worker_hours_lower_bound"] == 210.0
-    assert result.shortage_report["additional_workers_lower_bound"] == 6
-    assert result.shortage_report["additional_worker_hours_to_complete_quota"] == 220.0
-    assert result.shortage_report["additional_workers_to_complete_quota_lower_bound"] == 6
-    assert result.shortage_report["additional_machines_by_type"] == {"Machine4": 2}
-    assert result.shortage_report["qualified_worker_hour_shortage_by_machine"] == {
-        "Machine2": 80.0
-    }
-    assert result.unassigned_machine_hours
+    schedule = Scheduler(input_data).create_schedule()
+
+    assert schedule["Cutting"][0].worker_name == "CuttingSpecialist"
+    assert schedule["Cutting"][0].process_output_per_hour == 50
+    assert schedule["Assembly"][0].worker_name == "AssemblySpecialist"
+    assert schedule["Assembly"][0].process_output_per_hour == 40
 
 
-def test_schedule_meets_item_throughput_when_capacity_is_available():
-    result = build_schedule(
-        DEFAULT_DATA,
-        ScheduleConfig(worker_hours_per_week=80, machine_hours_per_week=168),
+def test_scheduler_output_reports_whether_required_quantities_are_met():
+    input_data = SchedulerInputData(
+        company=Company(shift_hours=8, hours_per_week=40),
+        items=[Items(name="Widget", required_qty=1000, processes=["Cutting", "Assembly"])],
+        processes=[
+            Process(name="Cutting", process_code="P1"),
+            Process(name="Assembly", process_code="P2"),
+        ],
+        workers=[
+            Worker(name="CuttingSpecialist", process_output_per_hour={"P1": 50, "P2": 1}),
+            Worker(name="AssemblySpecialist", process_output_per_hour={"P1": 1, "P2": 40}),
+        ],
     )
 
-    assert result.item_output == {
-        "Item1": 10000.0,
-        "Item2": 20000.0,
-        "Item3": 15000.0,
-        "Item4": 12000.0,
-    }
-    assert result.machine_hours_used == {
-        "Machine1": 100.0,
-        "Machine2": 200.0,
-        "Machine3": 150.0,
-        "Machine4": 120.0,
-    }
-    assert result.unassigned_machine_hours == {}
-    assert result.shortage_report["additional_workers_lower_bound"] == 0
-    assert result.shortage_report["additional_machines_by_type"] == {}
+    output = Scheduler(input_data).create_schedule_output()
+
+    assert output["is_enough"] is True
+    assert output["items"] == [
+        {
+            "item_name": "Widget",
+            "required_qty": 1000,
+            "possible_qty": 1600,
+            "is_enough": True,
+            "process_capacities": {"Cutting": 2000, "Assembly": 1600},
+            "missing_processes": [],
+        }
+    ]
 
 
-def test_worker_assignments_respect_skills_and_weekly_hours():
-    config = ScheduleConfig(worker_hours_per_week=80, machine_hours_per_week=168)
-    result = build_schedule(DEFAULT_DATA, config)
-    worker_skills = {
-        worker: set(skills) for worker, skills in DEFAULT_DATA["Workers"].items()
-    }
+def test_scheduler_output_reports_insufficient_required_quantities():
+    input_data = SchedulerInputData(
+        company=Company(shift_hours=8, hours_per_week=40),
+        items=[Items(name="Widget", required_qty=2000, processes=["Cutting", "Assembly"])],
+        processes=[
+            Process(name="Cutting", process_code="P1"),
+            Process(name="Assembly", process_code="P2"),
+        ],
+        workers=[
+            Worker(name="CuttingSpecialist", process_output_per_hour={"P1": 50, "P2": 1}),
+            Worker(name="AssemblySpecialist", process_output_per_hour={"P1": 1, "P2": 40}),
+        ],
+    )
 
-    for assignment in result.assignments:
-        assert assignment.machine in worker_skills[assignment.worker]
+    output = Scheduler(input_data).create_schedule_output()
 
-    assert max(result.worker_hours_used.values()) <= config.worker_hours_per_week
+    assert output["is_enough"] is False
+    assert output["items"][0]["possible_qty"] == 1600
+    assert output["items"][0]["is_enough"] is False
 
 
-def test_can_still_raise_with_partial_result_for_strict_callers():
-    with pytest.raises(InfeasibleScheduleError) as exc_info:
-        build_schedule(
-            DEFAULT_DATA,
-            ScheduleConfig(worker_hours_per_week=40, machine_hours_per_week=40),
-            raise_on_infeasible=True,
-        )
+def test_package_can_run_as_module():
+    result = subprocess.run(
+        [sys.executable, "-m", "manufacturing_scheduler"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
-    assert exc_info.value.partial_result is not None
-    assert exc_info.value.partial_result.is_feasible is False
+    output = json.loads(result.stdout)
+
+    assert "schedule" in output
+    assert output["items"][0]["item_name"] == "Sampler"
+    assert "is_enough" in output

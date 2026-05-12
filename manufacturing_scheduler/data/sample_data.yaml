@@ -1,0 +1,80 @@
+Company:
+  shift_hours: 8
+  hours_per_week: 40
+
+Items:
+  - name: Sampler
+    required_qty: 1000
+    processes:
+      - Glass tube cutting
+      - Ejection
+      - Assembly
+      - Head and tube fixing
+  
+Processes:
+  - name: Glass tube cutting
+    process_code: P1
+  - name: Ejection
+    process_code: P2
+  - name: Assembly
+    process_code: P3
+  - name: Head and tube fixing
+    process_code: P4
+
+Workers:
+  - name: Worker1
+    process_output_per_hour:
+      - P1: 20
+      - P2: 20
+      - P3: 20
+      - P4: 10
+  - name: Worker2
+    process_output_per_hour:
+      - P1: 30
+      - P2: 10
+      - P3: 20
+      - P4: 15
+  - name: Worker3
+    process_output_per_hour:
+      - P1: 14
+      - P2: 12
+      - P3: 10
+      - P4: 20
+  - name: Worker4
+    process_output_per_hour:
+      - P1: 10
+      - P2: 10
+      - P3: 10
+      - P4: 10
+  - name: Worker5
+    process_output_per_hour:
+      - P1: 11
+      - P2: 21
+      - P3: 25
+      - P4: 15
+  - name: Worker6
+    process_output_per_hour:
+      - P1: 11
+      - P2: 21
+      - P3: 25
+      - P4: 15
+  - name: Worker7
+    process_output_per_hour:
+      - P1: 14
+      - P2: 14
+      - P3: 21
+      - P4: 15
+  - name: Worker8
+    process_output_per_hour:
+      - P1: 29
+      - P2: 19
+      - P3: 29
+      - P4: 10
+  - name: Worker9
+    process_output_per_hour:
+      - P1: 32
+      - P2: 19
+      - P3: 12
+      - P4: 10
+
+  

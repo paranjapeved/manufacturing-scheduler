@@ -71,3 +71,13 @@ Set `raise_on_infeasible=True` if a strict API caller should receive an
 ```bash
 python -m pytest -q
 ```
+
+IT1 - Only sampler (12 people - 6 sampler, 6 random)
+Machine + Process - Induction, paper tube
+Worker skill (6 people) - glass tube cutting, ejection, assembly, head and tube fixing
+Item - required qty
+
+Max people per process will be hardcoded
+User inputs reqd qty per SKU (item)
+Code should output raw materials qty required
+Input who is not available
