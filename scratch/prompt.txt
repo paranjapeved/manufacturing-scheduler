@@ -1,0 +1,12 @@
+right now the create_schedule function in manufacturing_scheduler/scheduler.py assigns the workers to processes in a greedy fashion, which means that the first process that would be considered
+  in the loop would always get the best person for that process, which is unfair. Instead, make the logic such that each worker is assigned to each process in a round robin fashion
+  1.  first make sure that there are enough number of workers such that each process gets assigned atleast one worker 2
+  2. for each worker assign them to the process they are most skilled at (maxiumum process_output_per_hour for the worker), if there are multiple processes that the worker is equally good at 
+  then assign the worker to any of those processes.
+  3. do a second pass on the assignments and rebalance any workers based on process_output_per_hour
+
+
+  1. build a best_workers_for_process_sorted = {"P1": maxheap[(W1, W2, W3...)]}
+  2. build a best_process_for_worker = {W1: maxheap[(P1, P2, P3...)]}
+  3. pass1: using the 2 data structures above, for each process get the top worker, check if for that worker that is the best process 
+  

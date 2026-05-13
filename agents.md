@@ -7,4 +7,4 @@ Each  Item's production requires going through a set of processes.
 ## Coding Rules
 - Do not generate or suggest unit tests unless I explicitly use the word "test" or "verify" in my prompt.
 - Focus exclusively on implementation and logic by default.
-- Write comments for important code sections that you add
+- Write comments for important code sections that you add, function docstrings for new functions
