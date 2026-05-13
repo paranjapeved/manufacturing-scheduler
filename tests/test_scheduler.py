@@ -8,6 +8,8 @@ from manufacturing_scheduler.scheduler_input_data import SchedulerInputData, loa
 
 
 def test_scheduler_assigns_workers_roughly_equally_across_processes():
+    """Scheduler spreads workers across processes with at most one extra worker."""
+
     schedule = Scheduler(load_sample_data()).create_schedule()
 
     worker_counts = [len(assignments) for assignments in schedule.values()]
@@ -17,6 +19,8 @@ def test_scheduler_assigns_workers_roughly_equally_across_processes():
 
 
 def test_scheduler_prefers_highest_output_workers_for_processes():
+    """Scheduler assigns specialists to the processes where they output the most."""
+
     input_data = SchedulerInputData(
         company=Company(shift_hours=8, hours_per_week=40),
         items=[Items(name="Widget", required_qty=10, processes=["Cutting", "Assembly"])],
@@ -38,7 +42,40 @@ def test_scheduler_prefers_highest_output_workers_for_processes():
     assert schedule["Assembly"][0].process_output_per_hour == 40
 
 
+def test_scheduler_does_not_take_worker_from_their_best_process():
+    """Scheduler skips a process's top worker when that worker is stronger elsewhere."""
+
+    input_data = SchedulerInputData(
+        company=Company(shift_hours=8, hours_per_week=40),
+        items=[
+            Items(
+                name="Widget",
+                required_qty=10,
+                processes=["Cutting", "Assembly", "Polishing"],
+            )
+        ],
+        processes=[
+            Process(name="Cutting", process_code="P1"),
+            Process(name="Assembly", process_code="P2"),
+            Process(name="Polishing", process_code="P3"),
+        ],
+        workers=[
+            Worker(name="AssemblyLead", process_output_per_hour={"P1": 99, "P2": 100, "P3": 0}),
+            Worker(name="CuttingLead", process_output_per_hour={"P1": 80, "P2": 1, "P3": 0}),
+            Worker(name="PolishingLead", process_output_per_hour={"P1": 0, "P2": 0, "P3": 50}),
+        ],
+    )
+
+    schedule = Scheduler(input_data).create_schedule()
+
+    assert schedule["Cutting"][0].worker_name == "CuttingLead"
+    assert schedule["Assembly"][0].worker_name == "AssemblyLead"
+    assert schedule["Polishing"][0].worker_name == "PolishingLead"
+
+
 def test_scheduler_output_reports_whether_required_quantities_are_met():
+    """Schedule output reports enough capacity when all required quantities can be met."""
+
     input_data = SchedulerInputData(
         company=Company(shift_hours=8, hours_per_week=40),
         items=[Items(name="Widget", required_qty=1000, processes=["Cutting", "Assembly"])],
@@ -68,6 +105,8 @@ def test_scheduler_output_reports_whether_required_quantities_are_met():
 
 
 def test_scheduler_output_reports_insufficient_required_quantities():
+    """Schedule output reports insufficient capacity when production is below demand."""
+
     input_data = SchedulerInputData(
         company=Company(shift_hours=8, hours_per_week=40),
         items=[Items(name="Widget", required_qty=2000, processes=["Cutting", "Assembly"])],
@@ -89,6 +128,8 @@ def test_scheduler_output_reports_insufficient_required_quantities():
 
 
 def test_package_can_run_as_module():
+    """Package entry point prints JSON output with schedule and item feasibility data."""
+
     result = subprocess.run(
         [sys.executable, "-m", "manufacturing_scheduler"],
         check=True,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+import heapq
 import json
 from pathlib import Path
 from typing import Any
@@ -37,10 +38,64 @@ class Scheduler:
     """Create balanced worker assignments based on process output ratings."""
 
     def __init__(self, input_data: SchedulerInputData):
+        """Store the structured company, item, process, and worker input data."""
+
         self.input_data = input_data
 
     def create_schedule(self) -> dict[str, list[WorkerProcessAssignment]]:
         """Assign each worker to a process while keeping process counts balanced."""
+
+        def assign_worker(
+            worker_name: str,
+            process_name: str,
+            process_code: str,
+            output_per_hour: int,
+        ) -> None:
+            """Add one worker assignment to the schedule and mark the worker assigned."""
+
+            schedule[process_name].append(
+                WorkerProcessAssignment(
+                    worker_name=worker_name,
+                    process_name=process_name,
+                    process_code=process_code,
+                    process_output_per_hour=output_per_hour,
+                )
+            )
+            unassigned_worker_names.remove(worker_name)
+
+        def top_worker_for_process(
+            process_name: str,
+        ) -> tuple[int, str, str, str] | None:
+            """Return the best unassigned worker option for a process, if any."""
+
+            worker_heap = best_workers_for_process_sorted[process_name]
+
+            while worker_heap and worker_heap[0][1] not in unassigned_worker_names:
+                heapq.heappop(worker_heap)
+
+            if not worker_heap:
+                return None
+
+            output_per_hour, worker_name, process_name, process_code = worker_heap[0]
+            return -output_per_hour, worker_name, process_name, process_code
+
+        def top_process_for_worker(worker_name: str) -> tuple[int, str, str] | None:
+            """Return a worker's best process that still has an open slot, if any."""
+
+            process_heap = best_process_for_worker[worker_name]
+
+            while (
+                process_heap
+                and len(schedule[process_heap[0][1]]) >= process_slots[process_heap[0][1]]
+            ):
+                heapq.heappop(process_heap)
+
+            if not process_heap:
+                return None
+
+            output_per_hour, process_name, process_code = process_heap[0]
+            return -output_per_hour, process_name, process_code
+
 
         processes = self.input_data.processes
         workers = self.input_data.workers
@@ -54,37 +109,66 @@ class Scheduler:
         schedule = {process.name: [] for process in processes}
         unassigned_worker_names = {worker.name for worker in workers}
 
-        ranked_options = sorted(
-            (
-                (
-                    worker.process_output_per_hour.get(process.process_code, 0),
-                    worker.name,
-                    process.name,
-                    process.process_code,
+        best_workers_for_process_sorted: dict[str, list[tuple[int, str, str, str]]] = {
+            process.name: [] for process in processes
+        }
+        best_process_for_worker: dict[str, list[tuple[int, str, str]]] = {
+            worker.name: [] for worker in workers
+        }
+
+        # Build max-heaps for both views of the same ratings: workers ranked by
+        # process, and processes ranked by worker.
+        for process in processes:
+            for worker in workers:
+                output_per_hour = worker.process_output_per_hour.get(process.process_code, 0)
+                heapq.heappush(
+                    best_workers_for_process_sorted[process.name],
+                    (-output_per_hour, worker.name, process.name, process.process_code),
                 )
-                for worker in workers
-                for process in processes
-            ),
-            reverse=True,
-        )
-
-        for output_per_hour, worker_name, process_name, process_code in ranked_options:
-            if worker_name not in unassigned_worker_names:
-                continue
-            if len(schedule[process_name]) >= process_slots[process_name]:
-                continue
-
-            schedule[process_name].append(
-                WorkerProcessAssignment(
-                    worker_name=worker_name,
-                    process_name=process_name,
-                    process_code=process_code,
-                    process_output_per_hour=output_per_hour,
+                heapq.heappush(
+                    best_process_for_worker[worker.name],
+                    (-output_per_hour, process.name, process.process_code),
                 )
-            )
-            unassigned_worker_names.remove(worker_name)
 
-            if not unassigned_worker_names:
+        # First assign only mutual best matches so a process does not take a
+        # worker whose strongest available fit is somewhere else.
+        for process in processes:
+            if len(schedule[process.name]) >= process_slots[process.name]:
+                continue
+
+            worker_option = top_worker_for_process(process.name)
+            if worker_option is None:
+                continue
+
+            output_per_hour, worker_name, process_name, process_code = worker_option
+            worker_top_process = top_process_for_worker(worker_name)
+            if worker_top_process is None:
+                continue
+
+            _, best_process_name, _ = worker_top_process
+            if best_process_name == process_name:
+                assign_worker(worker_name, process_name, process_code, output_per_hour)
+
+        # Fill the remaining slots one process at a time, preserving round-robin
+        # fairness while still choosing each process's best available worker.
+        while unassigned_worker_names:
+            assigned_this_round = False
+
+            for process in processes:
+                if not unassigned_worker_names:
+                    break
+                if len(schedule[process.name]) >= process_slots[process.name]:
+                    continue
+
+                worker_option = top_worker_for_process(process.name)
+                if worker_option is None:
+                    continue
+
+                output_per_hour, worker_name, process_name, process_code = worker_option
+                assign_worker(worker_name, process_name, process_code, output_per_hour)
+                assigned_this_round = True
+
+            if not assigned_this_round:
                 break
 
         return schedule
@@ -160,6 +244,8 @@ class Scheduler:
         }
 
     def _target_worker_counts(self) -> dict[str, int]:
+        """Calculate the balanced number of worker slots available per process."""
+
         process_count = len(self.input_data.processes)
         worker_count = len(self.input_data.workers)
         workers_per_process, extra_workers = divmod(worker_count, process_count)

@@ -11,18 +11,10 @@ to make it production ready
 ## What It Models
 
 - Items with a weekly requirement and production rate.
-- Machine types with a count of physical machines.
-- Workers with binary skills for operating machine types.
-- Weekly worker-hour and machine-hour capacity.
+- Processes: each item production consists of a number of processes.
+- Workers who each have an process_output_per_hour, it is the number of process instances completed by them in an hour
+- Weekly company hours and shift hours per day
 
-The scheduler first converts item demand into required machine hours:
-
-```text
-required hours = weekly production requirement / items produced per hour
-```
-
-It then uses a max-flow allocator to assign qualified workers to machines. This
-maximizes scheduled production hours under the current constraints.
 
 ## Run The Example
 
@@ -30,41 +22,6 @@ maximizes scheduled production hours under the current constraints.
 python -m manufacturing_scheduler
 ```
 
-The packaged example uses the seed data from the prompt and assumes a
-single-shift setup:
-
-- `40` available hours per worker per week
-- `40` available hours per physical machine per week
-
-Those assumptions make the provided demand infeasible, so the output includes
-the best possible schedule plus a shortage report. For the seed data, the
-single-shift setup needs `570` machine/worker-hours but only `350` hours can be
-assigned with the current skill and machine constraints.
-
-## Use As A Library
-
-```python
-from manufacturing_scheduler import DEFAULT_DATA, ScheduleConfig, build_schedule
-
-result = build_schedule(
-    DEFAULT_DATA,
-    ScheduleConfig(worker_hours_per_week=40, machine_hours_per_week=40),
-)
-
-print(result.as_dict())
-```
-
-Important result fields:
-
-- `is_feasible`: whether the full production quota was scheduled.
-- `assignments`: worker-to-machine schedule.
-- `item_output`: expected output from the schedule.
-- `unassigned_machine_hours`: remaining machine-hours by machine type.
-- `shortage_report`: additional workers, hours, qualified coverage, and machines
-  required.
-
-Set `raise_on_infeasible=True` if a strict API caller should receive an
-`InfeasibleScheduleError`. The exception includes the partial result.
 
 ## Tests
 
@@ -72,6 +29,8 @@ Set `raise_on_infeasible=True` if a strict API caller should receive an
 python -m pytest -q
 ```
 
+
+## V1
 IT1 - Only sampler (12 people - 6 sampler, 6 random)
 Machine + Process - Induction, paper tube
 Worker skill (6 people) - glass tube cutting, ejection, assembly, head and tube fixing
